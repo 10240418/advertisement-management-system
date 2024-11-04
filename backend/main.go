@@ -7,6 +7,7 @@ import (
 	"github.com/10240418/advertisement-management-system/backend/config"
 	"github.com/10240418/advertisement-management-system/backend/controllers"
 	"github.com/10240418/advertisement-management-system/backend/models"
+	"github.com/gin-contrib/cors" // 导入CORS中间件
 	"github.com/gin-gonic/gin"
 )
 
@@ -21,6 +22,15 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 
 	r := gin.Default()
+
+	// 配置CORS，允许任何来源
+	configCors := cors.Config{
+		AllowAllOrigins: true, // 允许所有来源
+		AllowMethods:    []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:    []string{"Origin", "Content-Type", "Authorization"},
+	}
+
+	r.Use(cors.New(configCors)) // 应用CORS中间件
 
 	// 定义API路由
 	api := r.Group("/api")
