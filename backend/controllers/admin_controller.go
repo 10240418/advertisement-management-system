@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/10240418/advertisement-management-system/backend/config"
@@ -11,7 +12,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// RegisterAdmin 注册新的管理员
 // RegisterAdmin 注册新的管理员
 func RegisterAdmin(c *gin.Context) {
 	var input struct {
@@ -99,15 +99,6 @@ func LoginAdmin(c *gin.Context) {
 	if err := bcrypt.CompareHashAndPassword([]byte(admin.Password), []byte(input.Password)); err != nil {
 		fmt.Printf("Password mismatch for user '%s': %v\n", input.Username, err)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		fmt.Printf("Password mismatch for user '%s': %v\n", []byte(admin.Password), err)
-		fmt.Printf("Password mismatch for user '%s': %v\n", []byte(input.Password), err)
-		var password = "healthist"
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-		if err != nil {
-			fmt.Println("Error generating hash:", err)
-			return
-		}
-		fmt.Println("Generated hash:", string(hashedPassword))
 		return
 	} else {
 		fmt.Printf("Password match for user '%s'\n", input.Username)
@@ -124,4 +115,111 @@ func LoginAdmin(c *gin.Context) {
 	fmt.Printf("Token generated for user '%s': %s\n", input.Username, token)
 
 	c.JSON(http.StatusOK, gin.H{"message": "登录成功", "token": token})
+}
+
+// GetAdminUsers 获取所有管理员
+func GetAdminUsers(c *gin.Context) {
+	// 从查询参数中获取分页信息
+	pageNum, _ := strconv.Atoi(c.DefaultQuery("pageNum", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	desc := c.DefaultQuery("desc", "true")
+
+	// 计算分页的偏移量
+	offset := (pageNum - 1) * pageSize
+
+	var admins []models.Administrator
+	var count int64
+
+	// 构建查询
+	query := config.DB.Model(&models.Administrator{})
+
+	// 添加排序
+	if desc == "true" {
+		query = query.Order("username DESC")
+	} else {
+		query = query.Order("username ASC")
+	}
+
+	// 执行查询并进行分页
+	if err := query.Offset(offset).Limit(pageSize).Find(&admins).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取管理员失败"})
+		return
+	}
+
+	// 获取总记录数用于分页
+	query.Count(&count)
+
+	// 返回数据和分页信息
+	c.JSON(http.StatusOK, gin.H{
+		"data": gin.H{
+			"data":      admins,
+			"total":     count,
+			"pageNum":   pageNum,
+			"pageSize":  pageSize,
+			"totalPage": (count + int64(pageSize) - 1) / int64(pageSize),
+		},
+	})
+}
+
+// 修改密码
+func UpdateAdminPassword(c *gin.Context) {
+	var input struct {
+		Username    string `json:"username"`
+		OldPassword string `json:"old_password"`
+		NewPassword string `json:"new_password"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 查询数据库中的管理员
+	var admin models.Administrator
+	if err := config.DB.Where("username = ?", input.Username).First(&admin).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的凭证"})
+		return
+	}
+
+	// 验证旧密码
+	if err := bcrypt.CompareHashAndPassword([]byte(admin.Password), []byte(input.OldPassword)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "旧密码不正确"})
+		return
+	}
+
+	// 加密新密码
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "新密码加密失败"})
+		return
+	}
+
+	// 更新密码
+	admin.Password = string(hashedPassword)
+	if err := config.DB.Save(&admin).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新密码失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "密码更新成功"})
+}
+
+// DeleteAdmin 删除管理员
+func DeleteAdmin(c *gin.Context) {
+	var input struct {
+		ID uint `json:"id"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 删除管理员
+	if err := config.DB.Where("id = ?", input.ID).Delete(&models.Administrator{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除管理员失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "管理员删除成功"})
 }
