@@ -14,5 +14,5 @@ type Advertisement struct {
 	VideoURL               string                  `json:"video_url"`
 	VideoDuration          int64                   `json:"video_duration"`            // 以秒为单位
 	Status                 string                  `json:"status" binding:"required"` // active, inactive
-	AdvertisementBuildings []AdvertisementBuilding `gorm:"foreignKey:AdvertisementID" json:"advertisements_buildings"`
+	AdvertisementBuildings []AdvertisementBuilding `gorm:"foreignKey:AdvertisementID;constraint:OnDelete:CASCADE;" json:"advertisements_buildings"`
 }

@@ -213,13 +213,34 @@ func GetBuilding(c *gin.Context) {
 	c.JSON(http.StatusOK, building)
 }
 
-// DeleteBuilding 删除大厦（硬删除）
+// DeleteBuilding 删除大厦（软删除）
 func DeleteBuilding(c *gin.Context) {
 	id := c.Param("id")
 
-	// 硬删除大厦记录
-	if err := config.DB.Unscoped().Delete(&models.Building{}, id).Error; err != nil {
+	// 开始事务
+	tx := config.DB.Begin()
+	if tx.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "启动事务失败"})
+		return
+	}
+
+	// 删除关联的 AdvertisementBuilding 记录
+	if err := tx.Where("building_id = ?", id).Delete(&models.AdvertisementBuilding{}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除关联广告失败"})
+		return
+	}
+
+	// 删除建筑记录
+	if err := tx.Unscoped().Delete(&models.Building{}, "id = ?", id).Error; err != nil {
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除大厦失败"})
+		return
+	}
+
+	// 提交事务
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "提交事务失败"})
 		return
 	}
 

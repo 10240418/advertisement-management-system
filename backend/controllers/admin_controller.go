@@ -117,6 +117,68 @@ func LoginAdmin(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "登录成功", "token": token})
 }
 
+// LoginAdmin 管理员登录
+// func LoginAdmin(c *gin.Context) {
+// 	var input struct {
+// 		Username string `json:"username"`
+// 		Password string `json:"password"`
+// 	}
+
+// 	if err := c.ShouldBindJSON(&input); err != nil {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 		return
+// 	}
+
+// 	// 修剪用户名和密码，去除前后空格
+// 	input.Username = strings.TrimSpace(input.Username)
+// 	input.Password = strings.TrimSpace(input.Password)
+
+// 	// 检查用户名和密码为空
+// 	if input.Username == "" || input.Password == "" {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "用户名和密码不能为空"})
+// 		return
+// 	}
+// 	// 查询数据库中的管理员
+// 	var admin models.Administrator
+
+// 	if err := config.DB.Where("username = ?", input.Username).First(&admin).Error; err != nil {
+// 		fmt.Printf("Login failed: %v\n", err)
+// 		c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的凭证"})
+// 		return
+// 	}
+
+// 	fmt.Printf("Fetched admin from DB: %+v\n", admin)
+
+// 	if err := bcrypt.CompareHashAndPassword([]byte(admin.Password), []byte(input.Password)); err != nil {
+// 		fmt.Printf("Password mismatch for user '%s': %v\n", input.Username, err)
+// 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+// 		fmt.Printf("Password mismatch for user '%s': %v\n", []byte(admin.Password), err)
+// 		fmt.Printf("Password mismatch for user '%s': %v\n", []byte(input.Password), err)
+// 		var password = "healthist"
+// 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+// 		if err != nil {
+// 			fmt.Println("Error generating hash:", err)
+// 			return
+// 		}
+// 		fmt.Println("Generated hash:", string(hashedPassword))
+// 		return
+// 	} else {
+// 		fmt.Printf("Password match for user '%s'\n", input.Username)
+// 	}
+
+// 	// 生成JWT
+// 	token, err := config.GenerateToken(admin.Username)
+// 	if err != nil {
+// 		fmt.Printf("Token generation failed: %v\n", err)
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成token失败"})
+// 		return
+// 	}
+
+// 	fmt.Printf("Token generated for user '%s': %s\n", input.Username, token)
+
+// 	c.JSON(http.StatusOK, gin.H{"message": "登录成功", "token": token})
+// }
+
 // GetAdminUsers 获取所有管理员
 func GetAdminUsers(c *gin.Context) {
 	// 从查询参数中获取分页信息
