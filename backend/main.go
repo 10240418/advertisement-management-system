@@ -43,10 +43,11 @@ func main() {
 	{
 		// 广告路由
 		protected.GET("/ads", controllers.GetAds)
-		protected.GET("/ads/:id", controllers.GetAd)
+		// protected.GET("/ads/:id", controllers.GetAd)
 		protected.POST("/ads", controllers.CreateAd)
 		protected.PUT("/ads/:id", controllers.UpdateAd)
 		protected.DELETE("/ads/:id", controllers.DeleteAd)
+		protected.PUT("/ads/update_play_duration", controllers.UpdatePlayDuration)
 
 		// 大厦路由
 		protected.GET("/buildings", controllers.GetBuildings)

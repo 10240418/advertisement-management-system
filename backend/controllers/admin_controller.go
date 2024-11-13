@@ -201,19 +201,19 @@ func UpdateAdminPassword(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "密码更新成功"})
 }
 
-// DeleteAdmin 删除管理员
+// DeleteAdmin 删除管理员（硬删除）
 func DeleteAdmin(c *gin.Context) {
 	var input struct {
-		ID uint `json:"id"`
+		ID uint `json:"id" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID 是必需的"})
 		return
 	}
 
-	// 直接从数据库中删除管理员记录
-	if err := config.DB.Delete(&models.Administrator{}, input.ID).Error; err != nil {
+	// 硬删除管理员记录
+	if err := config.DB.Unscoped().Delete(&models.Administrator{}, input.ID).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除管理员失败"})
 		return
 	}

@@ -19,8 +19,14 @@ func InitDB() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	// 自动迁移模型
-	err = DB.AutoMigrate(&models.Advertisement{}, &models.Building{}, &models.Notice{}, &models.Administrator{})
+	// 自动迁移模型，包括关联表
+	err = DB.AutoMigrate(
+		&models.Advertisement{},
+		&models.Building{},
+		&models.Notice{},
+		&models.Administrator{},
+		&models.AdvertisementBuilding{},
+	)
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}
