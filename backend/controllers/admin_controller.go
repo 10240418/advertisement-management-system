@@ -151,13 +151,10 @@ func GetAdminUsers(c *gin.Context) {
 
 	// 返回数据和分页信息
 	c.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
-			"data":      admins,
-			"total":     count,
-			"pageNum":   pageNum,
-			"pageSize":  pageSize,
-			"totalPage": (count + int64(pageSize) - 1) / int64(pageSize),
-		},
+		"data":     admins,
+		"total":    count,
+		"pageNum":  pageNum,
+		"pageSize": pageSize,
 	})
 }
 
@@ -215,8 +212,8 @@ func DeleteAdmin(c *gin.Context) {
 		return
 	}
 
-	// 删除管理员
-	if err := config.DB.Where("id = ?", input.ID).Delete(&models.Administrator{}).Error; err != nil {
+	// 直接从数据库中删除管理员记录
+	if err := config.DB.Delete(&models.Administrator{}, input.ID).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除管理员失败"})
 		return
 	}
