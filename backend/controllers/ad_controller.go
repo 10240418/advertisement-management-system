@@ -160,8 +160,16 @@ func UpdateAd(c *gin.Context) {
 	id := c.Param("id")
 	var ad models.Advertisement
 
+	// 开始事务
+	tx := config.DB.Begin()
+	if tx.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "启动事务失败"})
+		return
+	}
+
 	// 查找广告
-	if err := config.DB.Preload("AdvertisementBuildings").First(&ad, "id = ?", id).Error; err != nil {
+	if err := tx.Preload("AdvertisementBuildings").First(&ad, "id = ?", id).Error; err != nil {
+		tx.Rollback()
 		c.JSON(http.StatusNotFound, gin.H{"error": "广告未找到"})
 		return
 	}
@@ -170,11 +178,12 @@ func UpdateAd(c *gin.Context) {
 
 	// 绑定 JSON 数据到 input 结构体
 	if err := c.ShouldBindJSON(&input); err != nil {
+		tx.Rollback()
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 更新字段
+	// 更新广告字段
 	if input.Title != "" {
 		ad.Title = input.Title
 	}
@@ -195,7 +204,8 @@ func UpdateAd(c *gin.Context) {
 	}
 
 	// 保存更新后的广告
-	if err := config.DB.Save(&ad).Error; err != nil {
+	if err := tx.Save(&ad).Error; err != nil {
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新广告失败"})
 		return
 	}
@@ -203,20 +213,23 @@ func UpdateAd(c *gin.Context) {
 	// 处理建筑关联
 	if input.BuildingIDs != nil {
 		// 清除现有关联
-		if err := config.DB.Where("advertisement_id = ?", ad.ID).Delete(&models.AdvertisementBuilding{}).Error; err != nil {
+		if err := tx.Where("advertisement_id = ?", ad.ID).Delete(&models.AdvertisementBuilding{}).Error; err != nil {
+			tx.Rollback()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "清除现有关联失败"})
 			return
 		}
 
 		// 查询新的建筑
 		var buildings []models.Building
-		if err := config.DB.Where("id IN ?", input.BuildingIDs).Find(&buildings).Error; err != nil {
+		if err := tx.Where("id IN ?", input.BuildingIDs).Find(&buildings).Error; err != nil {
+			tx.Rollback()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "查询建筑失败"})
 			return
 		}
 
 		// 验证所有建筑 ID 是否存在
 		if len(buildings) != len(input.BuildingIDs) {
+			tx.Rollback()
 			c.JSON(http.StatusBadRequest, gin.H{"error": "某些建筑 ID 不存在"})
 			return
 		}
@@ -228,11 +241,18 @@ func UpdateAd(c *gin.Context) {
 				BuildingID:      building.ID,
 				PlayDuration:    ad.VideoDuration, // 默认为 VideoDuration
 			}
-			if err := config.DB.Create(&association).Error; err != nil {
+			if err := tx.Create(&association).Error; err != nil {
+				tx.Rollback()
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "关联广告与建筑失败"})
 				return
 			}
 		}
+	}
+
+	// 提交事务
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "提交事务失败"})
+		return
 	}
 
 	// 预加载关联数据返回
