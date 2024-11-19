@@ -3,66 +3,52 @@ package main
 import (
 	"log"
 
+	"time"
+
 	"github.com/10240418/advertisement-management-system/backend/config"
-	"github.com/10240418/advertisement-management-system/backend/controllers"
-	"github.com/10240418/advertisement-management-system/backend/middleware"
-	"github.com/gin-contrib/cors" // 导入CORS中间件
+	"github.com/10240418/advertisement-management-system/backend/models"
+	"github.com/10240418/advertisement-management-system/backend/routers"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("Error loading .env file")
+	// 加载环境变量
+	if err := godotenv.Load(); err != nil {
+		log.Fatalf("加载环境变量失败: %v", err)
 	}
 
-	config.InitDB()
-
-	r := gin.Default()
-	// 配置CORS，允许任何来源
-	configCors := cors.Config{
-		AllowAllOrigins: true, // 允许所有来源
-		AllowMethods:    []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:    []string{"Origin", "Content-Type", "Authorization"},
+	// 初始化数据库连接
+	if err := config.InitDB(); err != nil {
+		log.Fatalf("数据库连接失败: %v", err)
 	}
 
-	r.Use(cors.New(configCors)) // 应用CORS中间件
-
-	// 公共路由
-	r.POST("/admin/register", controllers.RegisterAdmin)
-	r.POST("/admin/login", controllers.LoginAdmin)
-	r.GET("/admin/users", controllers.GetAdminUsers)
-	r.DELETE("/admin/users", controllers.DeleteAdmin)
-	r.PUT("/admin/user", controllers.UpdateAdminPassword)
-
-	// 受保护的路由组
-	protected := r.Group("/api")
-	protected.Use(middleware.AuthMiddleware()) // 应用认证中间件
-
-	{
-		// 广告路由
-		protected.GET("/ads", controllers.GetAds)
-		protected.GET("/ads/:id", controllers.GetAd)
-		protected.POST("/ads", controllers.CreateAd)
-		protected.PUT("/ads/:id", controllers.UpdateAd)
-		protected.DELETE("/ads/:id", controllers.DeleteAd)
-		protected.PUT("/ads/update_play_duration", controllers.UpdatePlayDuration)
-
-		// 大厦路由
-		protected.GET("/buildings", controllers.GetBuildings)
-		protected.GET("/buildings/:id", controllers.GetBuilding)
-		protected.POST("/buildings", controllers.CreateBuilding)
-		protected.PUT("/buildings/:id", controllers.UpdateBuilding)
-		protected.DELETE("/buildings/:id", controllers.DeleteBuilding)
-
-		// 通知路由
-		protected.GET("/notices", controllers.GetNotices)
-		protected.GET("/notices/:id", controllers.GetNotice)
-		protected.POST("/notices", controllers.CreateNotice)
-		protected.PUT("/notices/:id", controllers.UpdateNotice)
-		protected.DELETE("/notices/:id", controllers.DeleteNotice)
+	// 运行数据库迁移
+	if err := config.DB.AutoMigrate(&models.Advertisement{}, &models.Building{}, &models.AdvertisementBuilding{}, &models.Administrator{}); err != nil {
+		log.Fatalf("数据库迁移失败: %v", err)
 	}
 
-	r.Run(":8080") // 监听端口
+	// 设置路由
+	r := routers.SetupRouter()
+
+	// 配置 CORS
+	configCORSMiddleware(r)
+
+	// 启动服务器
+	if err := r.Run(":8080"); err != nil {
+		log.Fatalf("启动服务器失败: %v", err)
+	}
+}
+
+// configCORSMiddleware 配置 CORS 中间件
+func configCORSMiddleware(r *gin.Engine) {
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"}, // 根据需求调整允许的源
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Authorization", "Content-Type"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 }

@@ -113,9 +113,19 @@ func LoginAdmin(c *gin.Context) {
 // GetAdminUsers 获取所有管理员
 func GetAdminUsers(c *gin.Context) {
 	// 从查询参数中获取分页信息
-	pageNum, _ := strconv.Atoi(c.DefaultQuery("pageNum", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+	pageNumStr := c.DefaultQuery("pageNum", "1")
+	pageSizeStr := c.DefaultQuery("pageSize", "10")
 	desc := c.DefaultQuery("desc", "true")
+
+	pageNum, err := strconv.Atoi(pageNumStr)
+	if err != nil || pageNum < 1 {
+		pageNum = 1
+	}
+
+	pageSize, err := strconv.Atoi(pageSizeStr)
+	if err != nil || pageSize < 1 {
+		pageSize = 10
+	}
 
 	// 计算分页的偏移量
 	offset := (pageNum - 1) * pageSize
@@ -123,24 +133,29 @@ func GetAdminUsers(c *gin.Context) {
 	var admins []models.Administrator
 	var count int64
 
-	// 构建查询
-	query := config.DB.Model(&models.Administrator{})
+	// 构建基础查询，不包含 Limit 和 Offset
+	baseQuery := config.DB.Model(&models.Administrator{})
 
 	// 添加排序
 	if desc == "true" {
-		query = query.Order("username DESC")
+		baseQuery = baseQuery.Order("username DESC")
 	} else {
-		query = query.Order("username ASC")
+		baseQuery = baseQuery.Order("username ASC")
 	}
 
-	// 执行查询并进行分页
-	if err := query.Offset(offset).Limit(pageSize).Find(&admins).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取管理员失败"})
+	// 获取总记录数（不包含 Limit 和 Offset）
+	if err := baseQuery.Count(&count).Error; err != nil {
+		fmt.Printf("Count Error: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取总数失败"})
 		return
 	}
 
-	// 获取总记录数用于分页
-	query.Count(&count)
+	// 执行查询并进行分页
+	if err := baseQuery.Offset(offset).Limit(pageSize).Find(&admins).Error; err != nil {
+		fmt.Printf("Find Error: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取管理员失败"})
+		return
+	}
 
 	// 返回数据和分页信息
 	c.JSON(http.StatusOK, gin.H{
