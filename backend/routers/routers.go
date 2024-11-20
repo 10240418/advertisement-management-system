@@ -13,6 +13,9 @@ func SetupRouter() *gin.Engine {
 	r.POST("/admin/register", controllers.RegisterAdmin)
 	r.POST("/admin/login", controllers.LoginAdmin)
 
+	// 获取上传参数
+	r.POST("/upload/policy", controllers.GetUploadParams)
+
 	// 受保护的路由组
 	protected := r.Group("/api")
 	protected.Use(middleware.AuthMiddleware()) // 应用认证中间件
