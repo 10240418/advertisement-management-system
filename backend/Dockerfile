@@ -23,7 +23,7 @@ WORKDIR /root/
 COPY --from=builder /app/main .
 
 # 复制.env文件（如果有）
-# COPY --from=builder /app/.env .
+COPY --from=builder /app/.env .
 
 # 暴露端口
 EXPOSE 8080

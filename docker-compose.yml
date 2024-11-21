@@ -1,4 +1,4 @@
-
+version: '3.8'
 
 services:
   db:
@@ -10,8 +10,8 @@ services:
       POSTGRES_DB: ad_management
     volumes:
       - db_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    networks:
+      - app-network
 
   backend:
     build: ./backend
@@ -19,18 +19,49 @@ services:
     environment:
       PORT: 8080
       POSTGRES_DSN: "host=db user=postgres password=healthist dbname=ad_management port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+      JWT_SECRET: your_jwt_secret_here
     depends_on:
       - db
-    ports:
-      - "8080:8080"
+    networks:
+      - app-network
 
   frontend:
-    build: ./advertisement-management-frontend
+    build:
+      context: ./advertisement-management-web
+      dockerfile: Dockerfile
     restart: always
-    ports:
-      - "3000:80"  # 前端将通过nginx的80端口暴露为宿主机的3000端口
+    environment:
+      VITE_API_BASE_URL: /api
     depends_on:
       - backend
+    volumes:
+      - frontend_dist:/app/dist
+    command: ["yarn", "build:ci"]
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - frontend_dist:/usr/share/nginx/html:ro
+      - ./certs:/etc/nginx/certs:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - app-network
 
 volumes:
   db_data:
+  frontend_dist:
+
+networks:
+  app-network:
+    driver: bridge
