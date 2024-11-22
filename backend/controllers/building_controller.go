@@ -14,14 +14,16 @@ import (
 type CreateBuildingInput struct {
 	Name             string `json:"name" binding:"required"`
 	Address          string `json:"address"`
+	BuildingID       string `json:"blg_id"`
 	AdvertisementIDs []uint `json:"advertisement_ids"`
 	// NoticeIDs 如果需要关联通知，也可以添加
 }
 
 // UpdateBuildingInput 定义更新大厦的输入结构体
 type UpdateBuildingInput struct {
-	Name    string `json:"name"`
-	Address string `json:"address"`
+	Name       string `json:"name"`
+	Address    string `json:"address"`
+	BuildingID string `json:"blg_id"`
 }
 
 // CreateBuilding 创建新大厦，并关联广告
@@ -36,8 +38,9 @@ func CreateBuilding(c *gin.Context) {
 
 	// 初始化大厦实例
 	building := models.Building{
-		Name:    input.Name,
-		Address: input.Address,
+		Name:       input.Name,
+		Address:    input.Address,
+		BuildingID: input.BuildingID,
 	}
 
 	// 开始事务
@@ -124,6 +127,9 @@ func UpdateBuilding(c *gin.Context) {
 	}
 	if input.Address != "" {
 		building.Address = input.Address
+	}
+	if input.BuildingID != "" {
+		building.BuildingID = input.BuildingID
 	}
 
 	// 保存更新后的大厦
